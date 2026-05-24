@@ -61,9 +61,11 @@ export default function LoginPage() {
 
     // Only students must use @mru.ac.in. Organizers and Admins can use any email.
     if (activeTab === 'student' && !email.endsWith('@mru.ac.in')) {
-      setError(`please use your college mail id`);
+      setError(`Students must use their college mail id (@mru.ac.in)`);
       return;
     }
+
+
 
     if (mode === 'forgot-password') {
       try {
@@ -282,10 +284,10 @@ export default function LoginPage() {
                         className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                         placeholder={
                           activeTab === 'admin' ? 'admin@campuspass.com' :
-                            activeTab === 'organizer' ? 'e.g., organizer@mru.ac.in' :
-                              'e.g., student@mru.ac.in'
+                          activeTab === 'organizer' ? 'e.g., organizer@gmail.com' :
+                          'e.g., student@mru.ac.in'
                         }
-                        required
+                      required
                       />
                     </div>
                   </div>
