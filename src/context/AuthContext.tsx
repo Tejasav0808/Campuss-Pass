@@ -68,24 +68,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
-      try {
-        if (session?.user) {
-          const role = await fetchProfileRole(session.user.id);
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            role,
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-          });
-        } else {
-          setUser(null);
-        }
-      } catch (err) {
-        console.error('Auth state change error:', err);
-        setUser(null);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: string, session: any) => {
+
+        setTimeout(async () => {
+          try {
+            if (session?.user) {
+              const role = await fetchProfileRole(session.user.id);
+
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                role,
+                name:
+                  session.user.user_metadata?.name ||
+                  session.user.email?.split('@')[0] ||
+                  'User',
+              });
+            } else {
+              setUser(null);
+            }
+          } catch (err) {
+            console.error('Auth state change error:', err);
+            setUser(null);
+          }
+        }, 0);
       }
-    });
+    );
 
     return () => {
       subscription.unsubscribe();
