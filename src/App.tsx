@@ -11,6 +11,7 @@ import EventStats from './pages/EventStats';
 import AdminDashboard from './pages/AdminDashboard';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import OrganizerPendingPage from './pages/OrganizerPendingPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { useAuth } from './context/AuthContext';
 
 // ─── Protected Route ─────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ function App() {
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Student dashboard */}
         <Route path="/dashboard" element={

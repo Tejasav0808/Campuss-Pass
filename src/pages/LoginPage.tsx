@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 type Tab = 'student' | 'organizer' | 'admin';
-type Mode = 'login' | 'signup' | 'forgot-password' | 'otp' | 'update-password';
+type Mode = 'login' | 'signup' | 'forgot-password' | 'otp';
 
 /** Maps a role to its home route */
 function getRoleRedirect(role?: string): string {
@@ -30,7 +30,6 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -40,7 +39,7 @@ export default function LoginPage() {
   const [isSending, setIsSending] = useState(false);
   
   const navigate = useNavigate();
-  const { sendOtp, verifyOtp, loginWithPassword, resetPassword, updatePassword, user } = useAuth();
+  const { sendOtp, verifyOtp, loginWithPassword, resetPassword, user } = useAuth();
 
   useEffect(() => {
     document.title = 'CampusPass | Login';
@@ -55,97 +54,91 @@ export default function LoginPage() {
     }
   }, [initialRole, hasForcedRole]);
 
-  useEffect(() => {
-    // Check if the user arrived via a password reset/recovery link
-    if (window.location.hash && window.location.hash.includes('type=recovery')) {
-      setMode('update-password');
-      setSuccessMsg('Recovery link verified. Please enter your new password.');
-    }
-  }, []);
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
 
-    if (mode === 'update-password') {
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
-      }
-      setIsSending(true);
-      const result = await updatePassword(password);
-      setIsSending(false);
-      if (result.success) {
-        setSuccessMsg('Password updated successfully!');
-        setTimeout(() => {
-          navigate(getRoleRedirect(user?.role), { replace: true });
-        }, 1500);
-      } else {
-        setError(result.message || 'Failed to update password');
-      }
-      return;
-    }
-
+    // Only students must use @mru.ac.in. Organizers and Admins can use any email.
     if (activeTab === 'student' && !email.endsWith('@mru.ac.in')) {
-      setError(`please use your college mail id`);
+      setError(`Students must use their college mail id (@mru.ac.in)`);
       return;
     }
 
     if (mode === 'forgot-password') {
-      setIsSending(true);
-      const result = await resetPassword(email);
-      setIsSending(false);
-      if (result.success) {
-        setIsResetSent(true);
-      } else {
-        setError(result.message || 'Failed to send reset link');
+      try {
+        setIsSending(true);
+        const result = await resetPassword(email);
+        if (result.success) {
+          setIsResetSent(true);
+        } else {
+          setError(result.message || 'Failed to send reset link');
+        }
+      } catch (err) {
+        setError('An unexpected error occurred.');
+      } finally {
+        setIsSending(false);
       }
       return;
     }
 
     if (mode === 'login') {
-      setIsSending(true);
-      const result = await loginWithPassword(email, password);
-      setIsSending(false);
-      
-      if (result.success) {
-        setSuccessMsg('Login successful! Redirecting...');
-        // Role is set asynchronously by AuthContext after auth state change;
-        // the useEffect above will handle the redirect once user.role is populated.
-      } else {
-        setError(result.message || 'Invalid credentials');
+      try {
+        setIsSending(true);
+        const result = await loginWithPassword(email, password);
+        
+        if (result.success) {
+          setSuccessMsg('Login successful! Redirecting...');
+          navigate(getRoleRedirect(result.role), { replace: true });
+          return; // Stop execution after successful navigate
+        } else {
+          setError(result.message || 'Invalid credentials');
+        }
+      } catch (err) {
+        setError('An unexpected error occurred.');
+      } finally {
+        setIsSending(false);
       }
       return;
     }
 
     if (mode === 'otp') {
-      setIsSending(true);
-      const result = await verifyOtp(email, otpCode, password, activeTab, name);
-      setIsSending(false);
-      
-      if (result.success) {
-        setSuccessMsg('Account created successfully! Redirecting...');
-        // AuthContext will pick up the new session and the useEffect redirect fires.
-      } else {
-        setError(result.message || 'Invalid OTP');
+      try {
+        setIsSending(true);
+        const result = await verifyOtp(email, otpCode, password, activeTab, name);
+        
+        if (result.success) {
+          setSuccessMsg('Account created successfully! Redirecting...');
+          // Role check / redirect will happen via AuthContext + useEffect
+        } else {
+          setError(result.message || 'Invalid OTP');
+        }
+      } catch (err) {
+        setError('An unexpected error occurred.');
+      } finally {
+        setIsSending(false);
       }
       return;
     }
 
     // mode is signup
-    setIsSending(true);
-    const result = await sendOtp(email);
-    setIsSending(false);
-    
-    if (result.success) {
-      setSuccessMsg('OTP sent to your email!');
-      setTimeout(() => {
-        setSuccessMsg('');
-        setMode('otp');
-      }, 1500);
-    } else {
-      setError(result.message || 'Failed to send OTP');
+    try {
+      setIsSending(true);
+      const result = await sendOtp(email);
+      
+      if (result.success) {
+        setSuccessMsg('OTP sent to your email!');
+        setTimeout(() => {
+          setSuccessMsg('');
+          setMode('otp');
+        }, 1500);
+      } else {
+        setError(result.message || 'Failed to send OTP');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred.');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -184,7 +177,7 @@ export default function LoginPage() {
             <p className="text-slate-400">
               {mode === 'forgot-password' ? "Enter your email to receive a reset link." :
                mode === 'otp' ? `We sent a 6-digit code to ${email}` :
-               mode === 'signup' ? 'Create your student account to start exploring.' : 
+               mode === 'signup' ? 'Create your account to start exploring.' : 
                `Sign in to your ${activeTab} account.`}
             </p>
           </div>
@@ -260,44 +253,6 @@ export default function LoginPage() {
                     />
                   </div>
                 </motion.div>
-              ) : mode === 'update-password' ? (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 ml-1">New Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-14 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
-                        placeholder="••••••••" 
-                        required 
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 ml-1">Confirm New Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-14 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
-                        placeholder="••••••••" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                </motion.div>
               ) : (
                 <>
                   {mode === 'signup' && (
@@ -328,7 +283,7 @@ export default function LoginPage() {
                         className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
                         placeholder={
                           activeTab === 'admin' ? 'admin@campuspass.com' : 
-                          activeTab === 'organizer' ? 'e.g., organizer@mru.ac.in' : 
+                          activeTab === 'organizer' ? 'e.g., organizer@gmail.com' : 
                           'e.g., student@mru.ac.in'
                         }
                         required 
@@ -384,12 +339,11 @@ export default function LoginPage() {
                   <span className="animate-pulse">Processing...</span>
                 ) : mode === 'forgot-password' ? 'Send Reset Link' : 
                     mode === 'otp' ? 'Verify OTP' :
-                    mode === 'update-password' ? 'Update Password' :
                     mode === 'signup' ? 'Create Account (Send OTP)' : `Sign in as ${activeTab}`}
                 {!isSending && <ArrowRight size={20} />}
               </button>
 
-              {(mode === 'forgot-password' || mode === 'otp' || mode === 'update-password') && (
+              {(mode === 'forgot-password' || mode === 'otp') && (
                 <button 
                   type="button"
                   onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}

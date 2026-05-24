@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   sendOtp: (email: string) => Promise<{ success: boolean; message: string }>;
   verifyOtp: (email: string, otp: string, password?: string, role?: Role, name?: string) => Promise<{ success: boolean; message: string }>;
-  loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; message: string; role?: Role }>;
   signup: (email: string, password: string, name: string, role: Role) => Promise<{ success: boolean; message: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
   updatePassword: (password: string) => Promise<{ success: boolean; message: string }>;
@@ -43,34 +43,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize and listen to Supabase auth state changes
   useEffect(() => {
     const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        const role = await fetchProfileRole(session.user.id);
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          role,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        });
-      } else {
+        if (session?.user) {
+          const role = await fetchProfileRole(session.user.id);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            role,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Auth initialization error:', err);
         setUser(null);
+      } finally {
+        // Always unblock the app — no loading freeze possible
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
-      if (session?.user) {
-        const role = await fetchProfileRole(session.user.id);
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          role,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        });
-      } else {
+      try {
+        if (session?.user) {
+          const role = await fetchProfileRole(session.user.id);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            role,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Auth state change error:', err);
         setUser(null);
       }
     });
@@ -109,7 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { success: false, message: 'Password is required to complete signup' };
         }
 
-        // OTP verified successfully, now create the user in Supabase
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -138,16 +149,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithPassword = useCallback(async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         return { success: false, message: error.message };
       }
-
-      return { success: true, message: 'Logged in successfully!' };
+      
+      let role = 'student' as Role;
+      if (data.user) {
+        role = await fetchProfileRole(data.user.id);
+      }
+      return { success: true, message: 'Logged in successfully!', role };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'Network error. Please try again later.' };
@@ -155,8 +166,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const signup = useCallback(async (email: string, password: string, name: string, role: Role) => {
@@ -164,9 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { name, role }
-        }
+        options: { data: { name, role } }
       });
       if (error) return { success: false, message: error.message };
       return { success: true, message: 'Account created successfully' };
@@ -178,8 +192,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = useCallback(async (email: string) => {
     try {
+      // Redirect to /reset-password so organizers land on the correct page,
+      // not the student login flow. Set this URL in Supabase Auth → URL Configuration.
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) return { success: false, message: error.message };
       return { success: true, message: 'Password reset email sent!' };
