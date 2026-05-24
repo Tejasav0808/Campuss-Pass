@@ -109,8 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { success: false, message: 'Password is required to complete signup' };
         }
 
+        console.log('OTP verified successfully on backend. Signing up on Supabase...', { email, role, name });
         // OTP verified successfully, now create the user in Supabase
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -120,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         });
+        console.log('Supabase signup response received:', { signUpData, signUpError });
 
         if (signUpError) {
           console.error('Supabase signup error:', signUpError);
