@@ -77,10 +77,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (activeTab === 'student' && !email.endsWith('@mru.ac.in')) {
-      setError(`please use your college mail id`);
-      return;
-    }
+
 
     if (mode === 'forgot-password') {
       setIsSending(true);
@@ -322,7 +319,7 @@ export default function LoginPage() {
                         placeholder={
                           activeTab === 'admin' ? 'admin@campuspass.com' : 
                           activeTab === 'organizer' ? 'e.g., organizer@mru.ac.in' : 
-                          'e.g., student@mru.ac.in'
+                          'e.g., student@gmail.com'
                         }
                         required 
                       />

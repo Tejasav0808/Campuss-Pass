@@ -153,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         return { success: false, message: error.message };
       }
-      
+
       let role = 'student' as Role;
       if (data.user) {
         role = await fetchProfileRole(data.user.id);

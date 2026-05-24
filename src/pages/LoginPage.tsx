@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { 
-  ShieldCheck, User, Users, ArrowRight, 
+import {
+  ShieldCheck, User, Users, ArrowRight,
   Ticket, Mail, Lock, CheckCircle2,
   ChevronLeft, Send, Eye, EyeOff, KeyRound
 } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isSending, setIsSending] = useState(false);
-  
+
   const navigate = useNavigate();
   const { sendOtp, verifyOtp, loginWithPassword, resetPassword, user } = useAuth();
 
@@ -59,9 +59,27 @@ export default function LoginPage() {
     setError('');
     setSuccessMsg('');
 
-    // Only students must use @mru.ac.in. Organizers and Admins can use any email.
+    if (mode === 'update-password') {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      setIsSending(true);
+      const result = await updatePassword(password);
+      setIsSending(false);
+      if (result.success) {
+        setSuccessMsg('Password updated successfully!');
+        setTimeout(() => {
+          navigate(getRoleRedirect(user?.role), { replace: true });
+        }, 1500);
+      } else {
+        setError(result.message || 'Failed to update password');
+      }
+      return;
+    }
+
     if (activeTab === 'student' && !email.endsWith('@mru.ac.in')) {
-      setError(`Students must use their college mail id (@mru.ac.in)`);
+      setError(`please use your college mail id`);
       return;
     }
 
@@ -86,7 +104,7 @@ export default function LoginPage() {
       try {
         setIsSending(true);
         const result = await loginWithPassword(email, password);
-        
+
         if (result.success) {
           setSuccessMsg('Login successful! Redirecting...');
           navigate(getRoleRedirect(result.role), { replace: true });
@@ -106,7 +124,7 @@ export default function LoginPage() {
       try {
         setIsSending(true);
         const result = await verifyOtp(email, otpCode, password, activeTab, name);
-        
+
         if (result.success) {
           setSuccessMsg('Account created successfully! Redirecting...');
           // Role check / redirect will happen via AuthContext + useEffect
@@ -125,7 +143,7 @@ export default function LoginPage() {
     try {
       setIsSending(true);
       const result = await sendOtp(email);
-      
+
       if (result.success) {
         setSuccessMsg('OTP sent to your email!');
         setTimeout(() => {
@@ -154,7 +172,7 @@ export default function LoginPage() {
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }}></div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-xl relative z-10"
@@ -168,17 +186,17 @@ export default function LoginPage() {
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-6 shadow-xl shadow-indigo-500/20">
               <Ticket size={32} />
             </div>
-            
+
             <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
-              {mode === 'forgot-password' ? 'Reset Password' : 
-               mode === 'otp' ? 'Enter OTP' :
-               mode === 'signup' ? 'Join the Hub' : 'Welcome Back'}
+              {mode === 'forgot-password' ? 'Reset Password' :
+                mode === 'otp' ? 'Enter OTP' :
+                  mode === 'signup' ? 'Join the Hub' : 'Welcome Back'}
             </h1>
             <p className="text-slate-400">
               {mode === 'forgot-password' ? "Enter your email to receive a reset link." :
-               mode === 'otp' ? `We sent a 6-digit code to ${email}` :
-               mode === 'signup' ? 'Create your account to start exploring.' : 
-               `Sign in to your ${activeTab} account.`}
+                mode === 'otp' ? `We sent a 6-digit code to ${email}` :
+                  mode === 'signup' ? 'Create your account to start exploring.' :
+                    `Sign in to your ${activeTab} account.`}
             </p>
           </div>
 
@@ -187,7 +205,7 @@ export default function LoginPage() {
               {error}
             </div>
           )}
-          
+
           {successMsg && (
             <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/50 text-emerald-400 text-center text-sm font-semibold">
               {successMsg}
@@ -202,11 +220,10 @@ export default function LoginPage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id as Tab)}
-                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                    activeTab === tab.id 
-                      ? `border-${tab.color}-500 bg-${tab.color}-500/10 text-${tab.color}-400` 
+                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${activeTab === tab.id
+                      ? `border-${tab.color}-500 bg-${tab.color}-500/10 text-${tab.color}-400`
                       : 'border-white/5 bg-white/5 text-slate-500 hover:border-white/10 hover:bg-white/10'
-                  }`}
+                    }`}
                 >
                   <tab.icon size={20} />
                   <span className="font-bold text-[10px] uppercase tracking-widest">{tab.label}</span>
@@ -216,7 +233,7 @@ export default function LoginPage() {
           )}
 
           {isResetSent ? (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="text-center py-8"
@@ -228,7 +245,7 @@ export default function LoginPage() {
               <p className="text-slate-400 mb-8 leading-relaxed">
                 We've sent a password reset link to <span className="text-white font-bold">{email}</span>. Please check your inbox.
               </p>
-              <button 
+              <button
                 onClick={() => { setMode('login'); setIsResetSent(false); }}
                 className="text-indigo-400 font-bold hover:underline"
               >
@@ -242,14 +259,14 @@ export default function LoginPage() {
                   <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 ml-1">6-Digit Code</label>
                   <div className="relative">
                     <KeyRound className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       maxLength={6}
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white text-center tracking-[0.5em] text-2xl placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
-                      placeholder="------" 
-                      required 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white text-center tracking-[0.5em] text-2xl placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                      placeholder="------"
+                      required
                     />
                   </div>
                 </motion.div>
@@ -260,13 +277,13 @@ export default function LoginPage() {
                       <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 ml-1">Full Name</label>
                       <div className="relative">
                         <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
-                          placeholder="Enter your name" 
-                          required 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                          placeholder="Enter your name"
+                          required
                         />
                       </div>
                     </motion.div>
@@ -276,17 +293,17 @@ export default function LoginPage() {
                     <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 ml-1">Email Address</label>
                     <div className="relative">
                       <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                         placeholder={
-                          activeTab === 'admin' ? 'admin@campuspass.com' : 
-                          activeTab === 'organizer' ? 'e.g., organizer@gmail.com' : 
-                          'e.g., student@mru.ac.in'
+                          activeTab === 'admin' ? 'admin@campuspass.com' :
+                            activeTab === 'organizer' ? 'e.g., organizer@mru.ac.in' :
+                              'e.g., student@mru.ac.in'
                         }
-                        required 
+                        required
                       />
                     </div>
                   </div>
@@ -295,7 +312,7 @@ export default function LoginPage() {
                     <div>
                       <div className="flex justify-between items-center mb-2 ml-1">
                         <label className="block text-xs font-bold uppercase tracking-widest text-slate-500">Password</label>
-                        <button 
+                        <button
                           type="button"
                           onClick={() => setMode('forgot-password')}
                           className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
@@ -305,12 +322,12 @@ export default function LoginPage() {
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                        <input 
-                          type={showPassword ? "text" : "password"} 
+                        <input
+                          type={showPassword ? "text" : "password"}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-14 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all" 
-                          placeholder="••••••••" 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-14 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                          placeholder="••••••••"
                           required={mode === 'login' || mode === 'signup'}
                         />
                         <button
@@ -326,25 +343,24 @@ export default function LoginPage() {
                 </>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isSending}
-                className={`w-full py-5 rounded-2xl text-white font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  activeTab === 'admin' ? 'bg-emerald-600 shadow-emerald-600/20' : 
-                  activeTab === 'organizer' ? 'bg-violet-600 shadow-violet-600/20' : 
-                  'bg-indigo-600 shadow-indigo-600/20'
-                }`}
+                className={`w-full py-5 rounded-2xl text-white font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 'admin' ? 'bg-emerald-600 shadow-emerald-600/20' :
+                    activeTab === 'organizer' ? 'bg-violet-600 shadow-violet-600/20' :
+                      'bg-indigo-600 shadow-indigo-600/20'
+                  }`}
               >
                 {isSending ? (
                   <span className="animate-pulse">Processing...</span>
-                ) : mode === 'forgot-password' ? 'Send Reset Link' : 
-                    mode === 'otp' ? 'Verify OTP' :
+                ) : mode === 'forgot-password' ? 'Send Reset Link' :
+                  mode === 'otp' ? 'Verify OTP' :
                     mode === 'signup' ? 'Create Account (Send OTP)' : `Sign in as ${activeTab}`}
                 {!isSending && <ArrowRight size={20} />}
               </button>
 
               {(mode === 'forgot-password' || mode === 'otp') && (
-                <button 
+                <button
                   type="button"
                   onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}
                   className="w-full text-slate-400 text-sm font-bold hover:text-white transition-colors"
@@ -358,7 +374,7 @@ export default function LoginPage() {
           {/* Toggle Sign Up / Mode Switch */}
           {activeTab === 'student' && mode !== 'forgot-password' && mode !== 'otp' && !isResetSent && (
             <div className="mt-8 text-center border-t border-white/5 pt-8">
-              <button 
+              <button
                 onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}
                 className="text-slate-400 text-sm font-bold hover:text-indigo-400 transition-colors"
               >
