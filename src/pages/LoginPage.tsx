@@ -11,6 +11,16 @@ import {
 type Tab = 'student' | 'organizer' | 'admin';
 type Mode = 'login' | 'signup' | 'forgot-password' | 'otp' | 'update-password';
 
+/** Maps a role to its home route */
+function getRoleRedirect(role?: string): string {
+  switch (role) {
+    case 'admin': return '/admin';
+    case 'organizer': return '/organizer';
+    case 'organizer_pending': return '/organizer-pending';
+    default: return '/dashboard';
+  }
+}
+
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const initialRole = (searchParams.get('role') as Tab) || 'student';
@@ -35,7 +45,7 @@ export default function LoginPage() {
   useEffect(() => {
     document.title = 'CampusPass | Login';
     if (user) {
-      navigate('/dashboard', { replace: true });
+      navigate(getRoleRedirect(user.role), { replace: true });
     }
   }, [user, navigate]);
 
@@ -69,7 +79,7 @@ export default function LoginPage() {
       if (result.success) {
         setSuccessMsg('Password updated successfully!');
         setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+          navigate(getRoleRedirect(user?.role), { replace: true });
         }, 1500);
       } else {
         setError(result.message || 'Failed to update password');
@@ -100,10 +110,9 @@ export default function LoginPage() {
       setIsSending(false);
       
       if (result.success) {
-        setSuccessMsg('Login successful!');
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 1000);
+        setSuccessMsg('Login successful! Redirecting...');
+        // Role is set asynchronously by AuthContext after auth state change;
+        // the useEffect above will handle the redirect once user.role is populated.
       } else {
         setError(result.message || 'Invalid credentials');
       }
@@ -116,10 +125,8 @@ export default function LoginPage() {
       setIsSending(false);
       
       if (result.success) {
-        setSuccessMsg('Account created successfully!');
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 1000);
+        setSuccessMsg('Account created successfully! Redirecting...');
+        // AuthContext will pick up the new session and the useEffect redirect fires.
       } else {
         setError(result.message || 'Invalid OTP');
       }

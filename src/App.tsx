@@ -8,48 +8,111 @@ import Registrations from './pages/Registrations';
 import CreateEvent from './pages/CreateEvent';
 import InvitePage from './pages/InvitePage';
 import EventStats from './pages/EventStats';
+import AdminDashboard from './pages/AdminDashboard';
+import OrganizerDashboard from './pages/OrganizerDashboard';
+import OrganizerPendingPage from './pages/OrganizerPendingPage';
 import { useAuth } from './context/AuthContext';
 
-// Protected Route Component
-const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
+// ─── Protected Route ─────────────────────────────────────────────────────────
+// Role is sourced exclusively from the profiles table via AuthContext.
+// Never reads from localStorage or user_metadata.
+const ProtectedRoute = ({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}) => {
   const { user, loading } = useAuth();
 
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    // Redirect each role to its correct home instead of a blank /dashboard fallback
+    switch (user.role) {
+      case 'admin': return <Navigate to="/admin" replace />;
+      case 'organizer': return <Navigate to="/organizer" replace />;
+      case 'organizer_pending': return <Navigate to="/organizer-pending" replace />;
+      default: return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;
 };
 
+// ─── App ─────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        
-        {/* Protected Routes */}
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/events" element={<ProtectedRoute><EventsGrid /></ProtectedRoute>} />
-        <Route path="/events/:id" element={<ProtectedRoute><EventDetail /></ProtectedRoute>} />
-        <Route path="/registrations" element={<ProtectedRoute><Registrations /></ProtectedRoute>} />
-        
-        {/* Organizer & Admin Only */}
-        <Route path="/create-event" element={
-          <ProtectedRoute allowedRoles={['organizer', 'admin']}><CreateEvent /></ProtectedRoute>
-        } />
-        <Route path="/stats/:id" element={
-          <ProtectedRoute allowedRoles={['organizer', 'admin']}><EventStats /></ProtectedRoute>
-        } />
-        
-        {/* Admin Only */}
-        <Route path="/invite" element={
-          <ProtectedRoute allowedRoles={['admin']}><InvitePage /></ProtectedRoute>
+
+        {/* Student dashboard */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Dashboard />
+          </ProtectedRoute>
         } />
 
-        {/* Catch-all redirect to home */}
+        {/* Shared student + organizer + admin routes */}
+        <Route path="/events" element={
+          <ProtectedRoute allowedRoles={['student', 'organizer', 'admin']}>
+            <EventsGrid />
+          </ProtectedRoute>
+        } />
+        <Route path="/events/:id" element={
+          <ProtectedRoute allowedRoles={['student', 'organizer', 'admin']}>
+            <EventDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/registrations" element={
+          <ProtectedRoute allowedRoles={['student', 'organizer', 'admin']}>
+            <Registrations />
+          </ProtectedRoute>
+        } />
+
+        {/* Organizer hub */}
+        <Route path="/organizer" element={
+          <ProtectedRoute allowedRoles={['organizer']}>
+            <OrganizerDashboard />
+          </ProtectedRoute>
+        } />
+
+        {/* Organizer pending approval */}
+        <Route path="/organizer-pending" element={
+          <ProtectedRoute allowedRoles={['organizer_pending']}>
+            <OrganizerPendingPage />
+          </ProtectedRoute>
+        } />
+
+        {/* Organizer & Admin only */}
+        <Route path="/create-event" element={
+          <ProtectedRoute allowedRoles={['organizer', 'admin']}>
+            <CreateEvent />
+          </ProtectedRoute>
+        } />
+        <Route path="/stats/:id" element={
+          <ProtectedRoute allowedRoles={['organizer', 'admin']}>
+            <EventStats />
+          </ProtectedRoute>
+        } />
+
+        {/* Admin only */}
+        <Route path="/admin" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/invite" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <InvitePage />
+          </ProtectedRoute>
+        } />
+
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

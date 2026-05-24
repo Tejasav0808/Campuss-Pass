@@ -16,6 +16,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Fetch the user's role from the profiles table — the single source of truth. */
+async function fetchProfileRole(userId: string): Promise<Role> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      console.warn('Could not fetch profile role, defaulting to student:', error?.message);
+      return 'student';
+    }
+    return (data.role as Role) || 'student';
+  } catch (err) {
+    console.error('fetchProfileRole error:', err);
+    return 'student';
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,32 +44,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initializeAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (session?.user) {
+        const role = await fetchProfileRole(session.user.id);
         setUser({
           id: session.user.id,
           email: session.user.email || '',
-          role: (session.user.user_metadata?.role as Role) || 'student',
+          role,
           name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
         });
       } else {
-        // Fallback for legacy local storage user if they haven't migrated to Supabase
-        const savedUser = localStorage.getItem('campus_pass_user');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
-        }
+        setUser(null);
       }
       setLoading(false);
     };
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
       if (session?.user) {
+        const role = await fetchProfileRole(session.user.id);
         setUser({
           id: session.user.id,
           email: session.user.email || '',
-          role: (session.user.user_metadata?.role as Role) || 'student',
+          role,
           name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
         });
       } else {
@@ -85,12 +103,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ email, otp }),
       });
       const data = await response.json();
-      
+
       if (data.success) {
         if (!password) {
           return { success: false, message: 'Password is required to complete signup' };
         }
-        
+
         // OTP verified successfully, now create the user in Supabase
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -107,10 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Supabase signup error:', signUpError);
           return { success: false, message: signUpError.message };
         }
-        
+
         return { success: true, message: 'Account created successfully!' };
       }
-      
+
       return data;
     } catch (error) {
       console.error('Failed to verify OTP:', error);
@@ -126,29 +144,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
-        // Mock fallback for legacy users who haven't set up Supabase yet
-        const savedUser = localStorage.getItem('campus_pass_user');
-        if (savedUser) {
-           const parsedUser = JSON.parse(savedUser);
-           if (parsedUser.email === email) {
-              setUser(parsedUser);
-              return { success: true, message: 'Logged in via legacy method' };
-           }
-        }
         return { success: false, message: error.message };
       }
 
       return { success: true, message: 'Logged in successfully!' };
     } catch (error) {
-       console.error('Login error:', error);
-       return { success: false, message: 'Network error. Please try again later.' };
+      console.error('Login error:', error);
+      return { success: false, message: 'Network error. Please try again later.' };
     }
   }, []);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('campus_pass_user');
   }, []);
 
   const signup = useCallback(async (email: string, password: string, name: string, role: Role) => {
