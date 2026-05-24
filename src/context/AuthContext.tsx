@@ -61,18 +61,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
-      if (session?.user) {
-        const role = await fetchProfileRole(session.user.id);
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          role,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-        });
-      } else {
-        setUser(null);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+      // Defer the async database query to the next tick of the event loop.
+      // This prevents a known deadlock in the Supabase Client's Web Locks API on Chrome.
+      setTimeout(async () => {
+        if (session?.user) {
+          const role = await fetchProfileRole(session.user.id);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            role,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          });
+        } else {
+          setUser(null);
+        }
+      }, 0);
     });
 
     return () => {
