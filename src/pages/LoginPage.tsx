@@ -59,25 +59,7 @@ export default function LoginPage() {
     setError('');
     setSuccessMsg('');
 
-    if (mode === 'update-password') {
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
-      }
-      setIsSending(true);
-      const result = await updatePassword(password);
-      setIsSending(false);
-      if (result.success) {
-        setSuccessMsg('Password updated successfully!');
-        setTimeout(() => {
-          navigate(getRoleRedirect(user?.role), { replace: true });
-        }, 1500);
-      } else {
-        setError(result.message || 'Failed to update password');
-      }
-      return;
-    }
-
+    // Only students must use @mru.ac.in. Organizers and Admins can use any email.
     if (activeTab === 'student' && !email.endsWith('@mru.ac.in')) {
       setError(`please use your college mail id`);
       return;
@@ -221,8 +203,8 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setActiveTab(tab.id as Tab)}
                   className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${activeTab === tab.id
-                      ? `border-${tab.color}-500 bg-${tab.color}-500/10 text-${tab.color}-400`
-                      : 'border-white/5 bg-white/5 text-slate-500 hover:border-white/10 hover:bg-white/10'
+                    ? `border-${tab.color}-500 bg-${tab.color}-500/10 text-${tab.color}-400`
+                    : 'border-white/5 bg-white/5 text-slate-500 hover:border-white/10 hover:bg-white/10'
                     }`}
                 >
                   <tab.icon size={20} />
@@ -347,8 +329,8 @@ export default function LoginPage() {
                 type="submit"
                 disabled={isSending}
                 className={`w-full py-5 rounded-2xl text-white font-bold text-lg shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed ${activeTab === 'admin' ? 'bg-emerald-600 shadow-emerald-600/20' :
-                    activeTab === 'organizer' ? 'bg-violet-600 shadow-violet-600/20' :
-                      'bg-indigo-600 shadow-indigo-600/20'
+                  activeTab === 'organizer' ? 'bg-violet-600 shadow-violet-600/20' :
+                    'bg-indigo-600 shadow-indigo-600/20'
                   }`}
               >
                 {isSending ? (
